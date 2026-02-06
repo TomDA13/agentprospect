@@ -214,11 +214,13 @@ class ProductHuntScraper {
   normalizePost(node) {
     const topics = (node.topics?.edges || []).map((e) => e.node.name);
     const makers = (node.makers || []).map((m) => ({
-      name: m.name,
-      username: m.username,
+      name: m.name || '',
+      username: m.username || '',
       headline: m.headline || '',
       twitter: m.twitterUsername || '',
       website: m.websiteUrl || '',
+      ph_profile: m.username ? `https://www.producthunt.com/@${m.username}` : '',
+      twitter_url: m.twitterUsername ? `https://twitter.com/${m.twitterUsername}` : '',
     }));
 
     return {

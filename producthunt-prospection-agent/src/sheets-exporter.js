@@ -8,6 +8,24 @@ class SheetsExporter {
     this.sheets = null;
     this.spreadsheetId = null;
     this.sheetName = config.google_sheets.sheet_name;
+    this.headers = [
+      'Date',
+      'Produit',
+      'Description FR',
+      'Tagline',
+      'Maker',
+      'Profil PH',
+      'Twitter',
+      'Website Maker',
+      'Website Produit',
+      'Score Urgence',
+      'Score Qualification',
+      'Raison',
+      'URL PH',
+      'Email',
+      'Votes',
+      'Statut',
+    ];
   }
 
   async init() {
@@ -63,7 +81,8 @@ class SheetsExporter {
       }
 
       // Check headers
-      const headerRange = `'${this.sheetName}'!A1:N1`;
+      const colLetter = String.fromCharCode(64 + this.headers.length); // P for 16 cols
+      const headerRange = `'${this.sheetName}'!A1:${colLetter}1`;
       const headerRes = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
         range: headerRange,
@@ -75,22 +94,7 @@ class SheetsExporter {
           range: headerRange,
           valueInputOption: 'RAW',
           requestBody: {
-            values: [[
-              'Date',
-              'Produit',
-              'Tagline',
-              'Maker',
-              'PH Username',
-              'Twitter',
-              'Website',
-              'Score Urgence',
-              'Score Qualification',
-              'Raison',
-              'URL PH',
-              'Email',
-              'Votes',
-              'Statut',
-            ]],
+            values: [this.headers],
           },
         });
 
@@ -100,18 +104,23 @@ class SheetsExporter {
             spreadsheetId: this.spreadsheetId,
             requestBody: {
               requests: [
+                // Header: white bold text on blue-grey background
                 {
                   repeatCell: {
                     range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
                     cell: {
                       userEnteredFormat: {
-                        textFormat: { bold: true },
-                        backgroundColor: { red: 0.2, green: 0.2, blue: 0.2 },
+                        textFormat: { bold: true, fontSize: 10, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                        backgroundColor: { red: 0.26, green: 0.35, blue: 0.45 },
+                        horizontalAlignment: 'CENTER',
+                        verticalAlignment: 'MIDDLE',
+                        padding: { top: 4, bottom: 4, left: 6, right: 6 },
                       },
                     },
-                    fields: 'userEnteredFormat(textFormat,backgroundColor)',
+                    fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment,verticalAlignment,padding)',
                   },
                 },
+                // Freeze header row
                 {
                   updateSheetProperties: {
                     properties: {
@@ -121,10 +130,69 @@ class SheetsExporter {
                     fields: 'gridProperties.frozenRowCount',
                   },
                 },
+                // Auto-resize key columns
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 },
+                    properties: { pixelSize: 100 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 },
+                    properties: { pixelSize: 150 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 2, endIndex: 3 },
+                    properties: { pixelSize: 250 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 3, endIndex: 4 },
+                    properties: { pixelSize: 250 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 4, endIndex: 5 },
+                    properties: { pixelSize: 140 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 5, endIndex: 6 },
+                    properties: { pixelSize: 250 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 6, endIndex: 7 },
+                    properties: { pixelSize: 200 },
+                    fields: 'pixelSize',
+                  },
+                },
+                {
+                  updateDimensionProperties: {
+                    range: { sheetId, dimension: 'COLUMNS', startIndex: 11, endIndex: 12 },
+                    properties: { pixelSize: 300 },
+                    fields: 'pixelSize',
+                  },
+                },
               ],
             },
           });
         }
+
+        console.log('[Sheets] Headers written with formatting');
       }
 
       return true;
@@ -152,7 +220,8 @@ class SheetsExporter {
     if (!this.sheets) return new Set();
 
     try {
-      const range = `'${this.sheetName}'!E:K`;
+      // Use product name (col B) + PH URL (col M) as dedup key
+      const range = `'${this.sheetName}'!B:M`;
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
         range,
@@ -161,8 +230,7 @@ class SheetsExporter {
       const entries = new Set();
       if (res.data.values) {
         for (const row of res.data.values) {
-          // PH username + PH URL as unique key
-          if (row[0] && row[6]) entries.add(`${row[0]}::${row[6]}`);
+          if (row[0] && row[11]) entries.add(`${row[0]}::${row[11]}`);
         }
       }
       return entries;
@@ -186,7 +254,7 @@ class SheetsExporter {
     const newRows = [];
 
     for (const p of prospects) {
-      const key = `${p.maker_username}::${p.ph_url}`;
+      const key = `${p.product_name}::${p.ph_url}`;
       if (existing.has(key)) {
         skipped++;
         continue;
@@ -195,16 +263,18 @@ class SheetsExporter {
       newRows.push([
         p.date,
         p.product_name,
+        p.description_fr || '',
         p.tagline,
         p.maker_name,
-        p.maker_username,
-        p.maker_twitter || p.twitter,
-        p.product_website || p.website,
+        p.maker_ph_profile || '',
+        p.maker_twitter_url || '',
+        p.maker_website || '',
+        p.product_website || '',
         p.urgency_score,
         p.qualification_score,
         p.reason,
         p.ph_url,
-        p.email,
+        p.email || '',
         p.votes,
         p.status,
       ]);
@@ -212,12 +282,14 @@ class SheetsExporter {
     }
 
     if (newRows.length > 0) {
-      newRows.sort((a, b) => b[8] - a[8] || b[7] - a[7]);
+      // Sort by qualification desc, then urgency desc
+      newRows.sort((a, b) => b[10] - a[10] || b[9] - a[9]);
 
       try {
+        const colLetter = String.fromCharCode(64 + this.headers.length);
         await this.sheets.spreadsheets.values.append({
           spreadsheetId: this.spreadsheetId,
-          range: `'${this.sheetName}'!A:N`,
+          range: `'${this.sheetName}'!A:${colLetter}`,
           valueInputOption: 'RAW',
           insertDataOption: 'INSERT_ROWS',
           requestBody: { values: newRows },

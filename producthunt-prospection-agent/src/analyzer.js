@@ -49,14 +49,20 @@ class ProspectAnalyzer {
     const contact = this.extractContact(post);
     const isEuropean = this.detectEuropean(fullText, makerText);
 
+    // Resolve maker name: use username if name is REDACTED or empty
+    const makerName = this.resolveMakerName(primaryMaker);
+
     return {
       date: new Date(post.created_at).toISOString().split('T')[0],
       product_name: post.name,
       tagline: post.tagline,
-      maker_name: primaryMaker.name,
-      maker_username: primaryMaker.username,
-      maker_headline: primaryMaker.headline,
+      description_fr: this.generateFrenchDescription(post),
+      maker_name: makerName,
+      maker_username: primaryMaker.username || '',
+      maker_headline: primaryMaker.headline || '',
+      maker_ph_profile: primaryMaker.ph_profile || (primaryMaker.username ? `https://www.producthunt.com/@${primaryMaker.username}` : ''),
       maker_twitter: primaryMaker.twitter ? `@${primaryMaker.twitter}` : '',
+      maker_twitter_url: primaryMaker.twitter_url || (primaryMaker.twitter ? `https://twitter.com/${primaryMaker.twitter}` : ''),
       maker_website: primaryMaker.website || '',
       product_website: post.website || '',
       ph_url: post.ph_url,
@@ -67,11 +73,9 @@ class ProspectAnalyzer {
       qualification_score: qualificationScore,
       reason: this.buildReason(post, fullText, topicNames, makerText),
       email: contact.email,
-      twitter: contact.twitter,
-      website: contact.website,
       status: 'Nouveau',
       is_european: isEuropean,
-      all_makers: post.makers.map((m) => m.username).join(', '),
+      all_makers: post.makers.map((m) => this.resolveMakerName(m)).join(', '),
     };
   }
 
@@ -279,6 +283,103 @@ class ProspectAnalyzer {
     if (contact.twitter) reasons.push(`Twitter: ${contact.twitter}`);
 
     return reasons.join(' | ') || 'Correspondance topics';
+  }
+
+  /**
+   * Resolve maker name: fallback to username if name is REDACTED or missing.
+   */
+  resolveMakerName(maker) {
+    if (!maker) return 'Inconnu';
+    const name = (maker.name || '').trim();
+    if (!name || name === '[REDACTED]' || name.toLowerCase() === 'redacted') {
+      return maker.username || 'Inconnu';
+    }
+    return name;
+  }
+
+  /**
+   * Generate a short French description of what the product does.
+   */
+  generateFrenchDescription(post) {
+    const tagline = (post.tagline || '').trim();
+    const description = (post.description || '').trim();
+    const topics = post.topics || [];
+
+    // Build a concise FR summary from available data
+    const parts = [];
+
+    // Detect product category
+    const topicStr = topics.join(' ').toLowerCase();
+    const textLower = `${tagline} ${description}`.toLowerCase();
+
+    if (textLower.includes('saas') || topicStr.includes('saas')) {
+      parts.push('Outil SaaS');
+    } else if (textLower.includes('app') || textLower.includes('mobile')) {
+      parts.push('Application');
+    } else if (textLower.includes('platform') || textLower.includes('plateforme')) {
+      parts.push('Plateforme');
+    } else if (textLower.includes('dashboard') || textLower.includes('analytics')) {
+      parts.push('Dashboard/Analytics');
+    } else if (textLower.includes('ai') || textLower.includes('artificial intelligence') || topicStr.includes('artificial intelligence')) {
+      parts.push('Outil IA');
+    } else if (textLower.includes('tool') || textLower.includes('developer')) {
+      parts.push('Outil');
+    } else {
+      parts.push('Produit');
+    }
+
+    // Detect what it does (target/purpose)
+    const purposeMap = [
+      [/project management|task management|todo/i, 'gestion de projets'],
+      [/marketing|ad campaign|advertising/i, 'marketing'],
+      [/analytics|metrics|tracking/i, 'analytics/metriques'],
+      [/team|collaboration|remote/i, 'collaboration d\'equipe'],
+      [/customer|crm|sales/i, 'relation client/vente'],
+      [/design|figma|ui|ux/i, 'design'],
+      [/payment|billing|fintech|finance/i, 'finance/paiement'],
+      [/code|developer|api|devtool/i, 'developpeurs'],
+      [/email|newsletter|communication/i, 'communication'],
+      [/e-commerce|shop|store/i, 'e-commerce'],
+      [/education|learn|course/i, 'education'],
+      [/health|wellness|fitness/i, 'sante'],
+      [/security|privacy|auth/i, 'securite'],
+      [/automation|workflow|automat/i, 'automatisation'],
+      [/content|writing|blog/i, 'creation de contenu'],
+      [/search|data|database/i, 'donnees/recherche'],
+      [/feedback|survey|review/i, 'feedback/sondages'],
+      [/video|image|media|photo/i, 'media/visuel'],
+      [/agent|assistant|chat|bot/i, 'assistant IA'],
+      [/file|storage|upload|share/i, 'stockage/partage de fichiers'],
+      [/no-?code|low-?code/i, 'no-code'],
+      [/productivity/i, 'productivite'],
+    ];
+
+    const allText = `${tagline} ${description}`;
+    const detectedPurposes = [];
+    for (const [regex, label] of purposeMap) {
+      if (regex.test(allText)) {
+        detectedPurposes.push(label);
+      }
+    }
+
+    if (detectedPurposes.length > 0) {
+      parts.push(detectedPurposes.slice(0, 2).join(' & '));
+    }
+
+    // Detect stage
+    if (/beta|mvp|v1|prototype|early/i.test(allText)) {
+      parts.push('(early stage)');
+    }
+
+    // Add first topic if we have room
+    if (topics.length > 0 && parts.length < 3) {
+      const mainTopic = topics[0];
+      if (!parts.join(' ').toLowerCase().includes(mainTopic.toLowerCase())) {
+        parts.push(`[${mainTopic}]`);
+      }
+    }
+
+    return parts.join(' - ') || tagline;
   }
 }
 
