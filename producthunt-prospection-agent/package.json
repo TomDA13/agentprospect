@@ -1,0 +1,24 @@
+{
+  "name": "producthunt-prospection-agent",
+  "version": "1.0.0",
+  "description": "Automated Product Hunt prospecting agent for UX/UI design services",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "start:30d": "node src/main.js --period 30",
+    "start:today": "node src/main.js --period 1",
+    "start:all": "node src/main.js --period 7 --min-votes 0"
+  },
+  "keywords": [
+    "producthunt",
+    "prospecting",
+    "saas",
+    "ux",
+    "design"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "googleapis": "^144.0.0"
+  }
+}

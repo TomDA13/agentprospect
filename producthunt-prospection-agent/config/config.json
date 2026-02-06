@@ -1,0 +1,125 @@
+{
+  "search": {
+    "period_days": 7,
+    "min_votes": 5,
+    "max_results_per_query": 50,
+    "include_past_launches": true
+  },
+  "topics": [
+    "SaaS",
+    "Developer Tools",
+    "Productivity",
+    "Fintech",
+    "Health",
+    "Marketing",
+    "Design Tools",
+    "No-Code",
+    "Artificial Intelligence",
+    "Analytics",
+    "E-Commerce",
+    "CRM",
+    "Project Management",
+    "Communication",
+    "Education"
+  ],
+  "qualification": {
+    "ux_weakness_signals": [
+      "simple interface",
+      "basic ui",
+      "early stage",
+      "beta",
+      "mvp",
+      "just launched",
+      "first version",
+      "v1",
+      "prototype",
+      "work in progress",
+      "looking for feedback",
+      "need feedback",
+      "roast my",
+      "what do you think",
+      "any suggestions",
+      "how can i improve"
+    ],
+    "high_potential_tags": [
+      "saas",
+      "b2b",
+      "startup",
+      "beta",
+      "mvp",
+      "app",
+      "platform",
+      "tool",
+      "software",
+      "web app",
+      "mobile app",
+      "dashboard",
+      "marketplace"
+    ],
+    "low_value_tags": [
+      "open source",
+      "free",
+      "chrome extension",
+      "newsletter",
+      "blog",
+      "podcast",
+      "book",
+      "template",
+      "icon pack",
+      "wallpaper"
+    ],
+    "maker_role_boost": [
+      "founder",
+      "ceo",
+      "cto",
+      "co-founder",
+      "cofounder",
+      "maker",
+      "creator",
+      "indie hacker",
+      "solo founder",
+      "bootstrapper"
+    ],
+    "budget_indicators": {
+      "high": ["funded", "seed", "series a", "series b", "raised", "venture", "yc", "y combinator", "techstars"],
+      "medium": ["revenue", "paying customers", "mrr", "arr", "premium", "pro plan", "subscription"],
+      "low": ["side project", "hobby", "weekend project", "free tool"]
+    }
+  },
+  "scoring": {
+    "weights": {
+      "product_type_match": 2,
+      "ux_weakness_detected": 2,
+      "maker_role": 1.5,
+      "budget_potential": 1.5,
+      "vote_traction": 1,
+      "has_website": 0.5,
+      "has_contact": 1,
+      "european_signal": 0.5
+    },
+    "european_indicators": [
+      "europe", "eu", "uk", "france", "french", "germany", "german",
+      "spain", "spanish", "italy", "italian", "netherlands", "dutch",
+      "belgium", "swiss", "switzerland", "sweden", "norway", "denmark",
+      "finland", "portugal", "ireland", "austria", "poland", "czech",
+      "romania", "london", "paris", "berlin", "amsterdam", "barcelona",
+      "lisbon", "dublin", "stockholm", "copenhagen", "oslo", "helsinki",
+      "vienna", "warsaw", "prague", "zurich", "munich", "brussels",
+      "lyon", "marseille", "hamburg", "EUR", "GBP"
+    ]
+  },
+  "rate_limiting": {
+    "requests_per_minute": 20,
+    "delay_between_requests_ms": 3000
+  },
+  "google_sheets": {
+    "spreadsheet_id": "",
+    "sheet_name": "Prospects ProductHunt",
+    "credentials_path": "./config/google-credentials.json"
+  },
+  "output": {
+    "local_backup": true,
+    "backup_path": "./data/prospects.json",
+    "console_summary": true
+  }
+}
