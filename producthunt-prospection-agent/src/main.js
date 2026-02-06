@@ -63,6 +63,10 @@ class ProspectionAgent {
     const sheetsOk = await this.exporter.init();
     let sheetsResult = { added: 0, skipped: 0 };
     if (sheetsOk) {
+      if (this.resetSheets) {
+        console.log('[Pipeline] Resetting Google Sheet (--reset flag)...');
+        await this.exporter.resetSheet();
+      }
       sheetsResult = await this.exporter.exportProspects(prospects);
     } else {
       console.log('[Pipeline] Google Sheets skipped (not configured)');
@@ -154,7 +158,7 @@ async function main() {
     console.log('Options:');
     console.log('  --period <days>     Override search period (default: 7)');
     console.log('  --min-votes <n>     Override minimum votes (default: 5)');
-    console.log('  --no-sheets         Skip Google Sheets export');
+    console.log('  --reset             Reset Google Sheet (delete old data, fresh headers)');
     console.log('  -h, --help          Show help');
     return;
   }
@@ -178,6 +182,7 @@ async function main() {
   }
 
   const agent = new ProspectionAgent();
+  agent.resetSheets = args.includes('--reset');
 
   try {
     await agent.run();

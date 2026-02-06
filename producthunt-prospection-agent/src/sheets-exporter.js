@@ -28,6 +28,14 @@ class SheetsExporter {
     ];
   }
 
+  get colCount() {
+    return this.headers.length;
+  }
+
+  get lastColLetter() {
+    return String.fromCharCode(64 + this.colCount);
+  }
+
   async init() {
     const credentialsPath = path.resolve(__dirname, '..', config.google_sheets.credentials_path);
 
@@ -59,6 +67,85 @@ class SheetsExporter {
     }
   }
 
+  /**
+   * Delete the existing sheet if it exists, then create a fresh one.
+   */
+  async resetSheet() {
+    if (!this.sheets) return false;
+
+    try {
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId: this.spreadsheetId,
+      });
+
+      const existing = spreadsheet.data.sheets.find(
+        (s) => s.properties.title === this.sheetName
+      );
+
+      if (existing) {
+        // Only delete if there is more than one sheet (Google requires at least 1)
+        if (spreadsheet.data.sheets.length > 1) {
+          await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId: this.spreadsheetId,
+            requestBody: {
+              requests: [{
+                deleteSheet: { sheetId: existing.properties.sheetId },
+              }],
+            },
+          });
+          console.log(`[Sheets] Deleted old sheet "${this.sheetName}"`);
+        } else {
+          // Clear the only sheet instead
+          await this.sheets.spreadsheets.values.clear({
+            spreadsheetId: this.spreadsheetId,
+            range: `'${this.sheetName}'`,
+          });
+          // Clear formatting
+          await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId: this.spreadsheetId,
+            requestBody: {
+              requests: [{
+                updateCells: {
+                  range: { sheetId: existing.properties.sheetId },
+                  fields: 'userEnteredFormat',
+                },
+              }],
+            },
+          });
+          console.log(`[Sheets] Cleared sheet "${this.sheetName}"`);
+          // Write headers on this existing cleared sheet
+          await this.writeHeadersAndFormat();
+          return true;
+        }
+      }
+
+      // Create fresh sheet
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.spreadsheetId,
+        requestBody: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: this.sheetName,
+                gridProperties: { frozenRowCount: 1 },
+              },
+            },
+          }],
+        },
+      });
+      console.log(`[Sheets] Created fresh sheet "${this.sheetName}"`);
+
+      await this.writeHeadersAndFormat();
+      return true;
+    } catch (err) {
+      console.error(`[Sheets] resetSheet error: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure sheet exists with correct headers. Recreates if headers mismatch.
+   */
   async ensureSheet() {
     if (!this.sheets) return false;
 
@@ -67,132 +154,43 @@ class SheetsExporter {
         spreadsheetId: this.spreadsheetId,
       });
 
-      const exists = spreadsheet.data.sheets.some(
+      const existing = spreadsheet.data.sheets.find(
         (s) => s.properties.title === this.sheetName
       );
 
-      if (!exists) {
+      if (!existing) {
+        // Create fresh sheet
         await this.sheets.spreadsheets.batchUpdate({
           spreadsheetId: this.spreadsheetId,
           requestBody: {
-            requests: [{ addSheet: { properties: { title: this.sheetName } } }],
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: this.sheetName,
+                  gridProperties: { frozenRowCount: 1 },
+                },
+              },
+            }],
           },
         });
+        await this.writeHeadersAndFormat();
+        return true;
       }
 
-      // Check headers
-      const colLetter = String.fromCharCode(64 + this.headers.length); // P for 16 cols
-      const headerRange = `'${this.sheetName}'!A1:${colLetter}1`;
+      // Sheet exists - check if headers match our expected headers
+      const headerRange = `'${this.sheetName}'!A1:${this.lastColLetter}1`;
       const headerRes = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
         range: headerRange,
       });
 
-      if (!headerRes.data.values || headerRes.data.values.length === 0) {
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: headerRange,
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [this.headers],
-          },
-        });
+      const currentHeaders = headerRes.data.values ? headerRes.data.values[0] : [];
+      const headersMatch = this.headers.length === currentHeaders.length &&
+        this.headers.every((h, i) => h === currentHeaders[i]);
 
-        const sheetId = await this.getSheetId();
-        if (sheetId !== null) {
-          await this.sheets.spreadsheets.batchUpdate({
-            spreadsheetId: this.spreadsheetId,
-            requestBody: {
-              requests: [
-                // Header: white bold text on blue-grey background
-                {
-                  repeatCell: {
-                    range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
-                    cell: {
-                      userEnteredFormat: {
-                        textFormat: { bold: true, fontSize: 10, foregroundColor: { red: 1, green: 1, blue: 1 } },
-                        backgroundColor: { red: 0.26, green: 0.35, blue: 0.45 },
-                        horizontalAlignment: 'CENTER',
-                        verticalAlignment: 'MIDDLE',
-                        padding: { top: 4, bottom: 4, left: 6, right: 6 },
-                      },
-                    },
-                    fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment,verticalAlignment,padding)',
-                  },
-                },
-                // Freeze header row
-                {
-                  updateSheetProperties: {
-                    properties: {
-                      sheetId,
-                      gridProperties: { frozenRowCount: 1 },
-                    },
-                    fields: 'gridProperties.frozenRowCount',
-                  },
-                },
-                // Auto-resize key columns
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 },
-                    properties: { pixelSize: 100 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 },
-                    properties: { pixelSize: 150 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 2, endIndex: 3 },
-                    properties: { pixelSize: 250 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 3, endIndex: 4 },
-                    properties: { pixelSize: 250 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 4, endIndex: 5 },
-                    properties: { pixelSize: 140 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 5, endIndex: 6 },
-                    properties: { pixelSize: 250 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 6, endIndex: 7 },
-                    properties: { pixelSize: 200 },
-                    fields: 'pixelSize',
-                  },
-                },
-                {
-                  updateDimensionProperties: {
-                    range: { sheetId, dimension: 'COLUMNS', startIndex: 11, endIndex: 12 },
-                    properties: { pixelSize: 300 },
-                    fields: 'pixelSize',
-                  },
-                },
-              ],
-            },
-          });
-        }
-
-        console.log('[Sheets] Headers written with formatting');
+      if (!headersMatch) {
+        console.log('[Sheets] Headers mismatch detected, resetting sheet...');
+        await this.resetSheet();
       }
 
       return true;
@@ -200,6 +198,109 @@ class SheetsExporter {
       console.error(`[Sheets] ensureSheet error: ${err.message}`);
       return false;
     }
+  }
+
+  /**
+   * Write headers row and apply formatting.
+   */
+  async writeHeadersAndFormat() {
+    const headerRange = `'${this.sheetName}'!A1:${this.lastColLetter}1`;
+
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: this.spreadsheetId,
+      range: headerRange,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [this.headers],
+      },
+    });
+
+    const sheetId = await this.getSheetId();
+    if (sheetId === null) return;
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: this.spreadsheetId,
+      requestBody: {
+        requests: [
+          // Header style: white bold text on a nice steel-blue
+          {
+            repeatCell: {
+              range: {
+                sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: this.colCount,
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    bold: true,
+                    fontSize: 10,
+                    foregroundColor: { red: 1, green: 1, blue: 1 },
+                  },
+                  backgroundColor: { red: 0.24, green: 0.45, blue: 0.65 },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE',
+                },
+              },
+              fields: 'userEnteredFormat(textFormat,backgroundColor,horizontalAlignment,verticalAlignment)',
+            },
+          },
+          // Freeze first row
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId,
+                gridProperties: { frozenRowCount: 1 },
+              },
+              fields: 'gridProperties.frozenRowCount',
+            },
+          },
+          // Column widths
+          ...this.getColumnWidthRequests(sheetId),
+        ],
+      },
+    });
+
+    console.log('[Sheets] Headers and formatting applied');
+  }
+
+  /**
+   * Returns column width requests for each column.
+   */
+  getColumnWidthRequests(sheetId) {
+    const widths = [
+      100,  // A: Date
+      150,  // B: Produit
+      280,  // C: Description FR
+      280,  // D: Tagline
+      140,  // E: Maker
+      280,  // F: Profil PH (URL)
+      220,  // G: Twitter (URL)
+      200,  // H: Website Maker
+      200,  // I: Website Produit
+      80,   // J: Score Urgence
+      80,   // K: Score Qualification
+      350,  // L: Raison
+      300,  // M: URL PH
+      200,  // N: Email
+      70,   // O: Votes
+      100,  // P: Statut
+    ];
+
+    return widths.map((pixelSize, i) => ({
+      updateDimensionProperties: {
+        range: {
+          sheetId,
+          dimension: 'COLUMNS',
+          startIndex: i,
+          endIndex: i + 1,
+        },
+        properties: { pixelSize },
+        fields: 'pixelSize',
+      },
+    }));
   }
 
   async getSheetId() {
@@ -220,7 +321,7 @@ class SheetsExporter {
     if (!this.sheets) return new Set();
 
     try {
-      // Use product name (col B) + PH URL (col M) as dedup key
+      // product name (col B index 1) + PH URL (col M index 12)
       const range = `'${this.sheetName}'!B:M`;
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
@@ -230,6 +331,7 @@ class SheetsExporter {
       const entries = new Set();
       if (res.data.values) {
         for (const row of res.data.values) {
+          // B=index0 in this subrange, M=index11
           if (row[0] && row[11]) entries.add(`${row[0]}::${row[11]}`);
         }
       }
@@ -261,22 +363,22 @@ class SheetsExporter {
       }
 
       newRows.push([
-        p.date,
-        p.product_name,
-        p.description_fr || '',
-        p.tagline,
-        p.maker_name,
-        p.maker_ph_profile || '',
-        p.maker_twitter_url || '',
-        p.maker_website || '',
-        p.product_website || '',
-        p.urgency_score,
-        p.qualification_score,
-        p.reason,
-        p.ph_url,
-        p.email || '',
-        p.votes,
-        p.status,
+        p.date,                         // A: Date
+        p.product_name,                 // B: Produit
+        p.description_fr || '',         // C: Description FR
+        p.tagline,                      // D: Tagline
+        p.maker_name,                   // E: Maker
+        p.maker_ph_profile || '',       // F: Profil PH
+        p.maker_twitter_url || '',      // G: Twitter
+        p.maker_website || '',          // H: Website Maker
+        p.product_website || '',        // I: Website Produit
+        p.urgency_score,                // J: Score Urgence
+        p.qualification_score,          // K: Score Qualification
+        p.reason,                       // L: Raison
+        p.ph_url,                       // M: URL PH
+        p.email || '',                  // N: Email
+        p.votes,                        // O: Votes
+        p.status,                       // P: Statut
       ]);
       added++;
     }
@@ -286,10 +388,9 @@ class SheetsExporter {
       newRows.sort((a, b) => b[10] - a[10] || b[9] - a[9]);
 
       try {
-        const colLetter = String.fromCharCode(64 + this.headers.length);
         await this.sheets.spreadsheets.values.append({
           spreadsheetId: this.spreadsheetId,
-          range: `'${this.sheetName}'!A:${colLetter}`,
+          range: `'${this.sheetName}'!A:${this.lastColLetter}`,
           valueInputOption: 'RAW',
           insertDataOption: 'INSERT_ROWS',
           requestBody: { values: newRows },
