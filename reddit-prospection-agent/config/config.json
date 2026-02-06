@@ -1,0 +1,131 @@
+{
+  "search": {
+    "period_hours": 24,
+    "max_results_per_subreddit": 50,
+    "min_score": 1,
+    "min_account_karma": 10,
+    "min_account_age_days": 7,
+    "filter_european_only": false
+  },
+  "subreddits": [
+    "SaaS",
+    "startups",
+    "Entrepreneur",
+    "SideProject",
+    "indiehackers",
+    "webdev",
+    "userexperience",
+    "UI_Design",
+    "ProductManagement",
+    "growmybusiness",
+    "advancedentrepreneur",
+    "EntrepreneurRideAlong",
+    "microsaas",
+    "nocode",
+    "buildinpublic",
+    "techstartups",
+    "smallbusiness",
+    "digital_marketing",
+    "AppBusiness",
+    "DesignCritiques"
+  ],
+  "keywords": {
+    "high_priority": [
+      "I need a UX/UI designer",
+      "I need a product designer",
+      "need help with user experience",
+      "need an audit",
+      "MVP design",
+      "how to design a SaaS",
+      "looking for a designer",
+      "hiring a designer",
+      "need a designer for my",
+      "looking for UX help"
+    ],
+    "medium_priority": [
+      "looking to increase retention",
+      "looking to increase conversion",
+      "how to improve my conversion rate",
+      "users don't convert to paid",
+      "high traffic but low conversion",
+      "need feedback on my design",
+      "poor retention rate",
+      "users churning",
+      "landing page not converting",
+      "low conversion rate",
+      "freemium to premium",
+      "onboarding is broken",
+      "users drop off",
+      "nobody is paying",
+      "can't retain users"
+    ],
+    "low_priority": [
+      "bad UX",
+      "ugly design",
+      "redesign",
+      "improve my app",
+      "improve my website",
+      "feedback on my landing page",
+      "roast my landing page",
+      "review my SaaS",
+      "rate my app",
+      "critique my design"
+    ]
+  },
+  "scoring": {
+    "role_keywords": {
+      "high": ["founder", "ceo", "cto", "co-founder", "cofounder", "solo founder", "bootstrapped"],
+      "medium": ["product manager", "pm", "head of product", "vp product", "startup"],
+      "low": ["developer", "dev", "engineer", "marketer"]
+    },
+    "budget_indicators": [
+      "budget",
+      "willing to pay",
+      "looking to hire",
+      "freelancer",
+      "agency",
+      "contractor",
+      "paid",
+      "invest in design"
+    ],
+    "urgency_indicators": [
+      "asap",
+      "urgent",
+      "launching soon",
+      "launch date",
+      "deadline",
+      "this week",
+      "this month",
+      "immediately",
+      "as soon as possible",
+      "running out of time",
+      "need it done fast"
+    ],
+    "european_indicators": [
+      "europe", "european", "eu", "uk", "france", "french", "germany", "german",
+      "spain", "spanish", "italy", "italian", "netherlands", "dutch", "belgium",
+      "belgian", "switzerland", "swiss", "sweden", "swedish", "norway", "norwegian",
+      "denmark", "danish", "finland", "finnish", "portugal", "portuguese", "ireland",
+      "irish", "austria", "austrian", "poland", "polish", "czech", "romania",
+      "romanian", "london", "paris", "berlin", "amsterdam", "barcelona", "lisbon",
+      "dublin", "stockholm", "copenhagen", "oslo", "helsinki", "vienna", "warsaw",
+      "prague", "zurich", "munich", "hamburg", "lyon", "marseille", "brussels",
+      "EUR", "GBP"
+    ]
+  },
+  "rate_limiting": {
+    "requests_per_minute": 30,
+    "delay_between_requests_ms": 2000,
+    "delay_between_subreddits_ms": 5000
+  },
+  "google_sheets": {
+    "spreadsheet_id": "",
+    "sheet_name": "Prospects Reddit",
+    "credentials_path": "./config/google-credentials.json"
+  },
+  "output": {
+    "local_backup": true,
+    "backup_path": "./data/prospects.json",
+    "console_summary": true
+  }
+}

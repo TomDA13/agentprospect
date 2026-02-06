@@ -1,0 +1,28 @@
+{
+  "name": "reddit-prospection-agent",
+  "version": "1.0.0",
+  "description": "Automated Reddit prospecting agent for UX/UI design services targeting SaaS founders",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "start:eu": "node src/main.js --eu-only",
+    "start:week": "node src/main.js --period 168",
+    "start:48h": "node src/main.js --period 48"
+  },
+  "keywords": [
+    "reddit",
+    "prospecting",
+    "saas",
+    "ux",
+    "ui",
+    "design",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "googleapis": "^144.0.0",
+    "snoowrap": "^1.23.0"
+  }
+}
