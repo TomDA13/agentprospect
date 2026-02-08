@@ -51,6 +51,8 @@ class ProspectAnalyzer {
 
     // Resolve maker name: use username if name is REDACTED or empty
     const makerName = this.resolveMakerName(primaryMaker);
+    const makerUsername = this.resolveUsable(primaryMaker.username);
+    const makerTwitter = this.resolveUsable(primaryMaker.twitter);
 
     return {
       date: new Date(post.created_at).toISOString().split('T')[0],
@@ -58,12 +60,12 @@ class ProspectAnalyzer {
       tagline: post.tagline,
       description_fr: this.generateFrenchDescription(post),
       maker_name: makerName,
-      maker_username: primaryMaker.username || '',
-      maker_headline: primaryMaker.headline || '',
-      maker_ph_profile: primaryMaker.ph_profile || (primaryMaker.username ? `https://www.producthunt.com/@${primaryMaker.username}` : ''),
-      maker_twitter: primaryMaker.twitter ? `@${primaryMaker.twitter}` : '',
-      maker_twitter_url: primaryMaker.twitter_url || (primaryMaker.twitter ? `https://twitter.com/${primaryMaker.twitter}` : ''),
-      maker_website: primaryMaker.website || '',
+      maker_username: makerUsername,
+      maker_headline: this.resolveUsable(primaryMaker.headline),
+      maker_ph_profile: makerUsername ? `https://www.producthunt.com/@${makerUsername}` : '',
+      maker_twitter: makerTwitter ? `@${makerTwitter}` : '',
+      maker_twitter_url: makerTwitter ? `https://x.com/${makerTwitter}` : '',
+      maker_website: this.resolveUsable(primaryMaker.website),
       product_website: post.website || '',
       ph_url: post.ph_url,
       votes: post.votes,
@@ -286,15 +288,26 @@ class ProspectAnalyzer {
   }
 
   /**
+   * Check if a string is usable (not REDACTED/empty).
+   */
+  resolveUsable(str) {
+    if (!str) return '';
+    const trimmed = str.trim();
+    const lower = trimmed.toLowerCase();
+    if (!lower || lower === '[redacted]' || lower === 'redacted') return '';
+    return trimmed;
+  }
+
+  /**
    * Resolve maker name: fallback to username if name is REDACTED or missing.
    */
   resolveMakerName(maker) {
     if (!maker) return 'Inconnu';
-    const name = (maker.name || '').trim();
-    if (!name || name === '[REDACTED]' || name.toLowerCase() === 'redacted') {
-      return maker.username || 'Inconnu';
-    }
-    return name;
+    const name = this.resolveUsable(maker.name);
+    if (name) return name;
+    const username = this.resolveUsable(maker.username);
+    if (username) return username;
+    return 'Inconnu';
   }
 
   /**

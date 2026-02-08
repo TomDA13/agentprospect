@@ -129,11 +129,16 @@ class ProspectionAgent {
       for (const p of top) {
         console.log(`  [Q:${p.qualification_score}/10 U:${p.urgency_score}/10] ${p.product_name}`);
         console.log(`    "${p.tagline}"`);
-        console.log(`    Maker: ${p.maker_name} (${p.maker_username})${p.maker_twitter ? ' | ' + p.maker_twitter : ''}`);
+        console.log(`    ${p.description_fr}`);
+        const makerParts = [`Maker: ${p.maker_name}`];
+        if (p.maker_ph_profile) makerParts.push(p.maker_ph_profile);
+        if (p.maker_twitter) makerParts.push(p.maker_twitter);
+        console.log(`    ${makerParts.join(' | ')}`);
         console.log(`    ${p.votes} votes | ${p.ph_url}`);
         console.log(`    Raison: ${p.reason}`);
         if (p.email) console.log(`    Email: ${p.email}`);
         if (p.product_website) console.log(`    Site: ${p.product_website}`);
+        if (p.maker_website) console.log(`    Site maker: ${p.maker_website}`);
         console.log('');
       }
     }
